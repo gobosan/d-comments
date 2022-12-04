@@ -1,18 +1,18 @@
 /*
-    This file is part of d-comments.
+    This file is part of d-comments_For_DMM-TV.
 
-    d-comments is free software: you can redistribute it and/or modify
+    d-comments_For_DMM-TV is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    d-comments is distributed in the hope that it will be useful,
+    d-comments_For_DMM-TV is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with d-comments.  If not, see <https://www.gnu.org/licenses/>.
+    along with d-comments_For_DMM-TV.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 import style from "./style";
@@ -22,12 +22,27 @@ const status = {
   scroll: false,
 };
 
+let windowScrolledHeight = window.scrollY;
+window.addEventListener("scroll", () => {
+  windowScrolledHeight = window.scrollY;
+});
+
+let windowInnerHeight = window.innerHeight;
+window.addEventListener("resize", () => {
+  windowInnerHeight = window.innerHeight;
+});
+
 /**
  * ドキュメント要素の初期化
  * @returns HTML 要素
  */
 const init = () => {
-  const video = document.getElementById("video") as HTMLVideoElement;
+  const video = document.querySelector("video") as HTMLVideoElement;
+  Config.getOption("コメント欄の幅 (0～100%)", (value) => {
+    const n = Number(value);
+    const w = (100 - n) as number;
+    video.style.width = String(w) + "%";
+  });
 
   /**
    * スタイル設定
@@ -36,27 +51,15 @@ const init = () => {
     document.head.appendChild(style);
 
   /**
-   * すべての要素をラップする
-   */
-  const wrapper =
-    document.getElementById("d-comments-wrapper") ??
-    document.createElement("div");
-  if (!document.getElementById("d-comments-wrapper")) {
-    wrapper.id = "d-comments-wrapper";
-    video.parentElement?.before(wrapper);
-    wrapper.append(video.parentElement as HTMLElement);
-  }
-
-  /**
    * コメントコンテナ
    */
   document.getElementById("d-comments-container") &&
     document.getElementById("d-comments-container")?.remove();
   const container = document.createElement("div");
   container.id = "d-comments-container";
-  wrapper.appendChild(container);
-  Config.getOption("コメント欄の幅 (px)", (value) => {
-    container.style.width = String(value) + "px";
+  video.after(container);
+  Config.getOption("コメント欄の幅 (0～100%)", (value) => {
+    container.style.width = String(value) + "%";
   });
 
   /**
@@ -92,8 +95,8 @@ const init = () => {
 /**
  * スレッドデータからコメントを設置する
  * @param threadData
- * @param b  コメントコンテナを閉じるボタン
- * @param s  ステータス
+ * @param b コメントコンテナを閉じるボタン
+ * @param s ステータス
  * @param container コメントコンテナ
  * @param d エラーメッセージ表示用 paragraph
  * @param video
@@ -269,27 +272,37 @@ const setComments = (
       }
       const target =
         (list[li.length - 1] as HTMLElement) ?? (list[0] as HTMLElement);
-      if (target && !isScrollMode) {
+      if (target && !status.scroll) {
+        /**
+         * コメントコンテナのスクロール必要量
+         **/
         const scrollHeight = target.offsetTop - ul.offsetHeight;
 
-        let windowHeight = window.innerHeight;
-        window.addEventListener("resize", () => {
-          windowHeight = window.innerHeight;
-        });
-
-        let scrolledHeight = ul.scrollTop;
+        let ulScrolledHeight = ul.scrollTop;
         ul.addEventListener("scroll", () => {
-          scrolledHeight = ul.scrollTop;
+          ulScrolledHeight = ul.scrollTop;
         });
 
-        const scrollLength = Math.abs(scrollHeight - scrolledHeight);
-        if (windowHeight / 2 - scrollLength > 0) {
+        const ulScrollLength = Math.abs(scrollHeight - ulScrolledHeight);
+
+        /**
+         * コメントコンテナのスクロールがコンテナの高さの½以上必要か
+         **/
+        const isScrollBehaviorSmooth =
+          windowInnerHeight / 2 - ulScrollLength > 0;
+        /**
+         * ページ全体が⅛以上スクロールされたか
+         **/
+        const isWindowScrolledEnough =
+          windowScrolledHeight - windowInnerHeight / 8 > 0;
+
+        if (isScrollBehaviorSmooth && !isWindowScrolledEnough) {
           target.scrollIntoView({
             behavior: "smooth",
             block: "end",
             inline: "nearest",
           });
-        } else {
+        } else if (!isWindowScrolledEnough) {
           ul.scroll({
             top: scrollHeight,
             behavior: "instant" as ScrollBehavior,

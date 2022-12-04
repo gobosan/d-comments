@@ -1,10 +1,11 @@
-# d-comments
+# d-comments_For_DMM-TV
 
-d アニメストアの動画再生画面でニコニコ動画のコメントを表示する Chromium 拡張機能です。
+DMM TV の動画再生画面でニコニコ動画のコメントを表示する Chromium 拡張機能です。
 
-[Chrome Web Store](https://chrome.google.com/webstore/detail/d-comments/jocjhkklfiaojhhnjiejmimlohaemiep)
-
-[Microsoft Edge Addon](https://microsoftedge.microsoft.com/addons/detail/dcomments/megnnllcbcmllggmljcgbadfblpodanp)
+ <!--
+[Chrome Web Store](https://chrome.google.com/webstore/detail/*)
+[Microsoft Edge Addon](https://microsoftedge.microsoft.com/addons/detail/*)
+ -->
 
 ## Requirements
 

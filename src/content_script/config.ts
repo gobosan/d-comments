@@ -1,18 +1,18 @@
 /*
-    This file is part of d-comments.
+    This file is part of d-comments_For_DMM-TV.
 
-    d-comments is free software: you can redistribute it and/or modify
+    d-comments_For_DMM-TV is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    d-comments is distributed in the hope that it will be useful,
+    d-comments_For_DMM-TV is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with d-comments.  If not, see <https://www.gnu.org/licenses/>.
+    along with d-comments_For_DMM-TV.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 export type options = {
@@ -24,7 +24,7 @@ export const defaultOptions: options = {
   ポップアップを開いたとき自動で動画検索を開始する: true,
   スクロールモードを利用可能にする: true,
   "作品ページに「コメントを表示しながら再生」ボタンを追加する": true,
-  "コメント欄の幅 (px)": 300,
+  "コメント欄の幅 (0～100%)": 20,
 };
 
 /**
