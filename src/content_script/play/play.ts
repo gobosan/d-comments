@@ -1,25 +1,31 @@
 /*
-    This file is part of d-comments_For_DMM-TV.
+    This file is part of d-comments.
 
-    d-comments_For_DMM-TV is free software: you can redistribute it and/or modify
+    d-comments is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    d-comments_For_DMM-TV is distributed in the hope that it will be useful,
+    d-comments is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with d-comments_For_DMM-TV.  If not, see <https://www.gnu.org/licenses/>.
+    along with d-comments.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-import style from "./style";
-import * as Config from "./config";
+import * as Config from "../config";
 
 const status = {
-  scroll: false,
+  /** スクロールモードかどうか */
+  isScrollMode: false,
+  /** 設定「スクロールモードを利用可能にする」の値 */
+  ScrollConfig: true,
+  /** コメントコンテナ上にマウスカーソルがあるか */
+  isMouseOver: false,
+  /** 作品再生時刻 */
+  time: "",
 };
 
 let windowScrolledHeight = window.scrollY;
@@ -33,66 +39,6 @@ window.addEventListener("resize", () => {
 });
 
 /**
- * ドキュメント要素の初期化
- * @returns HTML 要素
- */
-const init = () => {
-  const video = document.querySelector("video") as HTMLVideoElement;
-  Config.getOption("コメント欄の幅 (0～100%)", (value) => {
-    const n = Number(value);
-    const w = (100 - n) as number;
-    video.style.width = String(w) + "%";
-  });
-
-  /**
-   * スタイル設定
-   */
-  document.getElementById("d-comments-style") ??
-    document.head.appendChild(style);
-
-  /**
-   * コメントコンテナ
-   */
-  document.getElementById("d-comments-container") &&
-    document.getElementById("d-comments-container")?.remove();
-  const container = document.createElement("div");
-  container.id = "d-comments-container";
-  video.after(container);
-  Config.getOption("コメント欄の幅 (0～100%)", (value) => {
-    container.style.width = String(value) + "%";
-  });
-
-  /**
-   * ステータスを表示する
-   */
-  const s = document.createElement("div");
-  s.id = "d-comments-status";
-  container.appendChild(s);
-
-  /**
-   * エラーメッセージ表示用 paragraph
-   */
-  const d = document.createElement("div");
-  d.id = "d-comments-error";
-  d.innerHTML = "<p>コメント取得中...</p>";
-  d.style.display = "block";
-  container.appendChild(d);
-
-  /**
-   * コメントコンテナを閉じるボタン
-   */
-  const b = document.createElement("button");
-  b.id = "d-comments-close";
-  b.textContent = "サイドバーを閉じる";
-  b.setAttribute("type", "button");
-  b.addEventListener("click", () => {
-    b.parentElement?.remove();
-  });
-
-  return { b, s, container, d, video };
-};
-
-/**
  * スレッドデータからコメントを設置する
  * @param threadData
  * @param b コメントコンテナを閉じるボタン
@@ -101,7 +47,7 @@ const init = () => {
  * @param d エラーメッセージ表示用 paragraph
  * @param video
  */
-const setComments = (
+const play = (
   threadData: any,
   b: HTMLButtonElement,
   s: HTMLDivElement,
@@ -109,12 +55,37 @@ const setComments = (
   d: HTMLDivElement,
   video: HTMLVideoElement
 ) => {
-  console.log("threads", threadData["threads"]);
-  const threads = threadData["threads"];
+  /**
+   * 設定の変更を監視する
+   */
+  chrome.storage.onChanged.addListener((changes, namespace) => {
+    for (let [key, { oldValue, newValue }] of Object.entries(changes)) {
+      console.log(
+        `設定 ${key} (namespace "${namespace}" ) が更新されました`,
+        `\n更新前 : ${oldValue} | 更新後 : ${newValue}`
+      );
+      switch (key) {
+        case "スクロールモードを利用可能にする":
+          status.ScrollConfig = newValue;
+          break;
+        case "コメント欄の幅 (0～100%)":
+          const n = Number(newValue);
+          const w = (100 - n) as number;
+          video.style.width = String(w) + "%";
+          container.style.width = String(newValue) + "%";
+          break;
+      }
+    }
+  });
+  Config.getConfig("スクロールモードを利用可能にする", (value) => {
+    status.ScrollConfig = value as boolean;
+  });
 
-  let time = new Object();
+  /**
+   * 再生時刻
+   */
   setTimeout(function main() {
-    if (!status.scroll) {
+    if (!status.isScrollMode) {
       const hours = `${
         Math.floor(video.currentTime / 3600) > 0
           ? Math.floor(video.currentTime / 3600) + "&nbsp;時間&nbsp;"
@@ -126,13 +97,13 @@ const setComments = (
           : ""
       }`;
       const seconds = `${Math.floor(video.currentTime % 60)}&nbsp;秒`;
-      if (time !== `${hours}${minutes}${seconds}`) {
-        time = `${hours}${minutes}${seconds}`;
-        s.innerHTML = `${hours}${minutes}${seconds}`;
+      if (status.time !== `${hours}${minutes}${seconds}`) {
+        status.time = `${hours}${minutes}${seconds}`;
+        s.innerHTML = status.time;
       }
     }
-    setTimeout(main, 100);
-  }, 100);
+    setTimeout(main, 120);
+  }, 120);
 
   /**
    * 任意のスレッドのコメントを表示する
@@ -140,17 +111,17 @@ const setComments = (
    * @returns コメント
    */
   const getThreadComments = (fork: string) => {
-    const thread = threads
+    const threads = threadData["threads"]
       .filter((thread: { [x: string]: string }) => {
         return thread["fork"] === fork;
       })
       .map((thread: any) => {
         return thread;
       });
-    if (thread.length > 1) {
-      return thread[1]["comments"];
+    if (threads.length > 1) {
+      return threads[1]["comments"];
     }
-    return thread[0]["comments"];
+    return threads[0]["comments"];
   };
 
   //const ownerThread = getThreadComments("owner");
@@ -181,34 +152,31 @@ const setComments = (
   /**
    * スクロールモード
    */
-  let isMouseOver = false;
-  let isScrollMode = false;
   const checkIsScrollModeEnabled = () => {
-    Config.getOption("スクロールモードを利用可能にする", (value) => {
-      if (value === true) {
-        isScrollMode = isMouseOver;
-        if (isMouseOver) {
-          status.scroll = true;
-          s.innerText = "スクロールモード";
-          s.style.background = "#eb5528";
-          s.style.color = "#ffffff";
-        } else {
-          status.scroll = false;
-          s.style.background = "#000000cc";
-        }
+    if (status.ScrollConfig === true) {
+      if (status.isMouseOver) {
+        status.isScrollMode = true;
+        s.innerText = "スクロールモード";
+        s.style.background = "#eb5528";
+        s.style.color = "#ffffff";
       } else {
-        isScrollMode = false;
-        status.scroll = false;
+        s.innerHTML = status.time;
+        status.isScrollMode = false;
         s.style.background = "#000000cc";
       }
-    });
+    } else {
+      status.isScrollMode = false;
+      s.innerHTML = status.time;
+      status.isScrollMode = false;
+      s.style.background = "#000000cc";
+    }
   };
   ul.addEventListener("mouseover", () => {
-    isMouseOver = true;
+    status.isMouseOver = true;
     checkIsScrollModeEnabled();
   });
   ul.addEventListener("mouseleave", () => {
-    isMouseOver = false;
+    status.isMouseOver = false;
     checkIsScrollModeEnabled();
   });
 
@@ -216,7 +184,7 @@ const setComments = (
    * コメントを取得して表示する
    */
   getComments().then((comments) => {
-    d.innerHTML = "";
+    d.innerText = "";
     d.style.display = "none";
     b.remove();
 
@@ -248,8 +216,8 @@ const setComments = (
       if (href !== location.href) {
         ul.remove();
         d.style.display = "block";
-        d.innerHTML =
-          "<p>作品パートが変更されました。</p><a>コメントを再取得してください。</a>";
+        d.innerText =
+          "作品パートが変更されました。\nコメントを再取得してください。";
         container.appendChild(b);
         href = location.href;
       }
@@ -272,7 +240,7 @@ const setComments = (
       }
       const target =
         (list[li.length - 1] as HTMLElement) ?? (list[0] as HTMLElement);
-      if (target && !status.scroll) {
+      if (target && !status.isScrollMode) {
         /**
          * コメントコンテナのスクロール必要量
          **/
@@ -314,75 +282,4 @@ const setComments = (
   });
 };
 
-/**
- * Chrome.runtime message からの発火用
- * @param movieId
- * @param data ファイルからコメントを読み込むときjsonファイルで保存されたコメントデータ。ファイルからの読み込みでない場合は、undefined。
- */
-const showComments = async (movieId: string, data: string) => {
-  const { b, s, container, d, video } = init();
-  if (data) {
-    const e = JSON.parse(data);
-    if (e["threadData"]) {
-      setComments(e["threadData"], b, s, container, d, video);
-    } else {
-      d.style.display = "block";
-      d.innerHTML = "<p>コメントの取得に失敗しました。</p>";
-      container.appendChild(b);
-      return;
-    }
-  } else {
-    chrome.runtime.sendMessage(
-      {
-        type: "movieData",
-        movieId: movieId,
-      },
-      (movieData) => {
-        console.log("movieData", movieData);
-        if (!movieData) {
-          d.style.display = "block";
-          d.innerHTML = "<p>動画情報の取得に失敗しました。</p>";
-          container.appendChild(b);
-          return;
-        }
-        if (movieData["meta"]["status"] !== 200) {
-          console.log(
-            "error",
-            movieData ? movieData["meta"]["status"] : "Error"
-          );
-          if (movieData["data"]) {
-            if (movieData["data"]["reasonCode"] === "PPV_VIDEO") {
-              d.style.display = "block";
-              d.innerHTML =
-                "<p>有料動画のためコメントを取得できませんでした。</p>";
-              container.appendChild(b);
-              return;
-            } else {
-              d.style.display = "block";
-              d.innerHTML = `<p>コメントの取得に失敗しました。</p><p><span>コード</span><span>${movieData["data"]["reasonCode"]}</span></p>`;
-              container.appendChild(b);
-              return;
-            }
-          } else {
-            d.style.display = "block";
-            d.innerHTML = `<p>動画情報の取得に失敗しました。</p><p><span>エラーコード</span><span>${movieData["meta"]["status"]}</span></p>`;
-            container.appendChild(b);
-            return;
-          }
-        } else {
-          chrome.runtime.sendMessage(
-            {
-              type: "threadData",
-              movieData: movieData,
-            },
-            (threadData) => {
-              setComments(threadData, b, s, container, d, video);
-            }
-          );
-        }
-      }
-    );
-  }
-};
-
-export default showComments;
+export default play;

@@ -15,8 +15,7 @@
     along with d-comments_For_DMM-TV.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-import * as util from "./util";
-import showComments from "./watchPage";
+import fire from "./play/fire";
 import exportJson from "./export";
 
 const href = window.location.href;
@@ -27,7 +26,7 @@ const isWatchPage = href.match(/https:\/\/tv\.dmm\.com\/vod\/playback/)
 
 chrome.runtime.onMessage.addListener((message) => {
   if (message.type === "showComments" && isWatchPage) {
-    showComments(message.movieId, message.data);
+    fire(message.movieId, message.data);
   }
   if (message.type === "exportJson" && isWatchPage) {
     exportJson(message.movieId);
